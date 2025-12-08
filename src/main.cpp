@@ -2,6 +2,7 @@
 #include <Dusk2Dawn.h>
 #include <ESP8266WiFi.h>            // we need wifi to get internet access
 #include <time.h>
+#include <arduino-timer.h>
 #include "../../../../PlatformIO/Projects/password_wifi.h"    
 
 /* Configuration of NTP */
@@ -12,8 +13,51 @@
 /* Globals */
 time_t now;                         // this are the seconds since Epoch (1970) - UTC
 tm tm;
+auto timer = timer_create_default(); // create a timer with default settings
+uint32_t what_time_is_it;
+uint32_t rise_time_is;
+uint32_t set_time_is;
+int ElSunrise;
+int ElSunset;
+
+char set_time[] = "00:00";
+char rise_time[] = "00:00";
+
+bool christmass_lights_on(void *)
+{
+ tm.tm_min++;
+ if (tm.tm_min > 60)
+ {
+  tm.tm_hour++;
+  tm.tm_min = 0;
+  if(tm.tm_hour > 23) 
+  {
+    time(&now);                       // read the current time
+    localtime_r(&now, &tm);           // update the structure tm with the current time
+    Dusk2Dawn::min2str(rise_time, ElSunrise);
+    Dusk2Dawn::min2str(set_time, ElSunset);
+
+    rise_time_is = (((uint32_t)rise_time[0] - (uint32_t)'0')*10)*60+
+                (((uint32_t)rise_time[1] - (uint32_t)'0'))*60+
+                (((uint32_t)rise_time[3] - (uint32_t)'0'))*10+
+                (((uint32_t)rise_time[4] - (uint32_t)'0'));
+  
+    set_time_is  = (((uint32_t)set_time[0] - (uint32_t)'0')*10)*60+
+                  (((uint32_t)set_time[1] - (uint32_t)'0'))*60+
+                  (((uint32_t)set_time[3] - (uint32_t)'0'))*10+
+                  (((uint32_t)set_time[4] - (uint32_t)'0'));
+  }
+ }
+
+  Serial.printf("What time is it %d\n\r", what_time_is_it);
+  Serial.printf("Rise time is    %d\n\r", rise_time_is);
+  Serial.printf("Set  time is    %d\n\r", set_time_is);
+
+  return true;
+}
 
 void setup() {
+  pinMode(D5, OUTPUT);
   Serial.begin (115200);
   
   Serial.println("\nNTP TZ DST - bare minimum");
@@ -56,12 +100,12 @@ void setup() {
   // Available methods are sunrise() and sunset(). Arguments are year, month,
   // day, and if Daylight Saving Time is in effect.
 
-  int ElSunrise  = Elblag.sunrise(tm.tm_year + 1900, //year since 1900
+  ElSunrise  = Elblag.sunrise(tm.tm_year + 1900, //year since 1900
                                       tm.tm_mon + 1, // January = 0 (!)
                                          tm.tm_mday, // day of month
                                               false);
 
-  int ElSunset  = Elblag.sunset(tm.tm_year + 1900, //year since 1900
+  ElSunset  = Elblag.sunset(tm.tm_year + 1900, //year since 1900
                                     tm.tm_mon + 1, // January = 0 (!)
                                        tm.tm_mday, // day of month
                                             false);
@@ -73,16 +117,45 @@ void setup() {
 
   // A static method converts the returned time to a 24-hour clock format.
   // Arguments are a character array and time in minutes.
-  char time[] = "00:00";
-  Dusk2Dawn::min2str(time, ElSunrise);
+  Dusk2Dawn::min2str(rise_time, ElSunrise);
   Serial.println("Sun Rise: ");
-  Serial.println(time); // 07:47
+  Serial.println(rise_time); // 07:47
   
-  Dusk2Dawn::min2str(time, ElSunset);
+  Dusk2Dawn::min2str(set_time, ElSunset);
   Serial.println("Sun Set: ");
-  Serial.println(time); // 15:19
+  Serial.println(set_time); // 15:19
+
+  what_time_is_it = (uint32_t)tm.tm_hour*60+(uint32_t)tm.tm_min;
+  // rise_time_is = (10*(uint32_t)rise_time[1]+(uint32_t)rise_time[2])*60+10*(uint32_t)rise_time[4]+(uint32_t)rise_time[5];
+  // set_time_is = (10*(uint32_t)set_time[1]+(uint32_t)set_time[2])*60+10*(uint32_t)set_time[4]+(uint32_t)set_time[5];
+
+  rise_time_is = (((uint32_t)rise_time[0] - (uint32_t)'0')*10)*60+
+                 (((uint32_t)rise_time[1] - (uint32_t)'0'))*60+
+                 (((uint32_t)rise_time[3] - (uint32_t)'0'))*10+
+                 (((uint32_t)rise_time[4] - (uint32_t)'0'));
+  
+  set_time_is  = (((uint32_t)set_time[0] - (uint32_t)'0')*10)*60+
+                 (((uint32_t)set_time[1] - (uint32_t)'0'))*60+
+                 (((uint32_t)set_time[3] - (uint32_t)'0'))*10+
+                 (((uint32_t)set_time[4] - (uint32_t)'0'));
+
+  Serial.printf("What time is it %d\n\r", what_time_is_it);
+  Serial.printf("Rise time is    %d\n\r", rise_time_is);
+  Serial.printf("Set  time is    %d\n\r", set_time_is);
+
+  timer.every(60*1000, christmass_lights_on);
 }
 
 
-void loop() {
+void loop()
+{
+  timer.tick(); // tick the timer
+ 
+  if((what_time_is_it>=rise_time_is)&&(what_time_is_it<=set_time_is))
+  {
+    digitalWrite(D5,false);
+  }else
+  {
+    digitalWrite(D5,true);
+  }
 }
