@@ -32,6 +32,7 @@ bool christmass_lights_on(void *)
   tm.tm_min = 0;
   if(tm.tm_hour > 23) 
   {
+    configTime(MY_TZ, MY_NTP_SERVER); // --> Here is the IMPORTANT ONE LINER needed in your sketch!
     time(&now);                       // read the current time
     localtime_r(&now, &tm);           // update the structure tm with the current time
     Dusk2Dawn::min2str(rise_time, ElSunrise);
