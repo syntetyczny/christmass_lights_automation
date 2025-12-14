@@ -26,12 +26,22 @@ char rise_time[] = "00:00";
 bool christmass_lights_on(void *)
 {
  tm.tm_min++;
- if (tm.tm_min > 60)
+ if (tm.tm_min > 59)
  {
   tm.tm_hour++;
   tm.tm_min = 0;
   if(tm.tm_hour > 23) 
   {
+        // start network
+    WiFi.persistent(false);
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(STASSID, STAPSK);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(200);
+      Serial.print ( "." );
+    }
+    Serial.println("\nWiFi connected");
+    
     configTime(MY_TZ, MY_NTP_SERVER); // --> Here is the IMPORTANT ONE LINER needed in your sketch!
     time(&now);                       // read the current time
     localtime_r(&now, &tm);           // update the structure tm with the current time
@@ -47,22 +57,25 @@ bool christmass_lights_on(void *)
                   (((uint32_t)set_time[1] - (uint32_t)'0'))*60+
                   (((uint32_t)set_time[3] - (uint32_t)'0'))*10+
                   (((uint32_t)set_time[4] - (uint32_t)'0'));
+
+    what_time_is_it = (uint32_t)tm.tm_hour*60+(uint32_t)tm.tm_min;
+
   }
  }
-
+  
+  what_time_is_it = (uint32_t)tm.tm_hour*60+(uint32_t)tm.tm_min;
+#ifdef DEBUG
+  Serial.printf("|=======================================|\n\r");
   Serial.printf("What time is it %d\n\r", what_time_is_it);
   Serial.printf("Rise time is    %d\n\r", rise_time_is);
   Serial.printf("Set  time is    %d\n\r", set_time_is);
-
+#endif
   return true;
 }
 
 void setup() {
   pinMode(D5, OUTPUT);
   Serial.begin (115200);
-  
-  Serial.println("\nNTP TZ DST - bare minimum");
-
   configTime(MY_TZ, MY_NTP_SERVER); // --> Here is the IMPORTANT ONE LINER needed in your sketch!
 
   // start network
@@ -75,7 +88,6 @@ void setup() {
   }
   Serial.println("\nWiFi connected");
   // by default, the NTP will be started after 60 secs
-
 
   time(&now);                       // read the current time
   localtime_r(&now, &tm);           // update the structure tm with the current time
@@ -111,24 +123,12 @@ void setup() {
                                        tm.tm_mday, // day of month
                                             false);
 
-  Serial.print("\thour:");
-  Serial.print(tm.tm_hour);         // hours since midnight  0-23
-  Serial.print("\tmin:");
-  Serial.print(tm.tm_min); 
-
   // A static method converts the returned time to a 24-hour clock format.
   // Arguments are a character array and time in minutes.
   Dusk2Dawn::min2str(rise_time, ElSunrise);
-  Serial.println("Sun Rise: ");
-  Serial.println(rise_time); // 07:47
-  
   Dusk2Dawn::min2str(set_time, ElSunset);
-  Serial.println("Sun Set: ");
-  Serial.println(set_time); // 15:19
 
   what_time_is_it = (uint32_t)tm.tm_hour*60+(uint32_t)tm.tm_min;
-  // rise_time_is = (10*(uint32_t)rise_time[1]+(uint32_t)rise_time[2])*60+10*(uint32_t)rise_time[4]+(uint32_t)rise_time[5];
-  // set_time_is = (10*(uint32_t)set_time[1]+(uint32_t)set_time[2])*60+10*(uint32_t)set_time[4]+(uint32_t)set_time[5];
 
   rise_time_is = (((uint32_t)rise_time[0] - (uint32_t)'0')*10)*60+
                  (((uint32_t)rise_time[1] - (uint32_t)'0'))*60+
@@ -139,10 +139,6 @@ void setup() {
                  (((uint32_t)set_time[1] - (uint32_t)'0'))*60+
                  (((uint32_t)set_time[3] - (uint32_t)'0'))*10+
                  (((uint32_t)set_time[4] - (uint32_t)'0'));
-
-  Serial.printf("What time is it %d\n\r", what_time_is_it);
-  Serial.printf("Rise time is    %d\n\r", rise_time_is);
-  Serial.printf("Set  time is    %d\n\r", set_time_is);
 
   timer.every(60*1000, christmass_lights_on);
 }
