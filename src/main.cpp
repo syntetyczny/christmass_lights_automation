@@ -1,14 +1,14 @@
 #include <Arduino.h>
 #include <Dusk2Dawn.h>
-#include <ESP8266WiFi.h>            // we need wifi to get internet access
+#include <WiFi.h>
 #include <time.h>
 #include <arduino-timer.h>
 #include "../../../../PlatformIO/Projects/password_wifi.h"    
 
 /* Configuration of NTP */
-#define MY_NTP_SERVER "pl.pool.ntp.org"
+const char MY_NTP_SERVER[] = "pl.pool.ntp.org";
 // https://remotemonitoringsystems.ca/time-zone-abbreviations.php           
-#define MY_TZ "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00"   
+const char MY_TZ[] =  "CET-1CEST-2,M3.5.0/02:00:00,M10.5.0/03:00:00";  
 
 /* Globals */
 time_t now;                         // this are the seconds since Epoch (1970) - UTC
@@ -41,8 +41,12 @@ bool christmass_lights_on(void *)
       Serial.print ( "." );
     }
     Serial.println("\nWiFi connected");
-    
-    configTime(MY_TZ, MY_NTP_SERVER); // --> Here is the IMPORTANT ONE LINER needed in your sketch!
+    // Set the timezone environment variable
+    setenv("TZ", MY_TZ, 1);
+    tzset(); // Apply the timezone setting
+
+  // Configure NTP (UTC offset is set to 0 as TZ handles it)
+    configTime( 0, 0, MY_NTP_SERVER); // --> Here is the IMPORTANT ONE LINER needed in your sketch!
     time(&now);                       // read the current time
     localtime_r(&now, &tm);           // update the structure tm with the current time
     Dusk2Dawn::min2str(rise_time, ElSunrise);
@@ -76,8 +80,13 @@ bool christmass_lights_on(void *)
 void setup() {
   pinMode(D5, OUTPUT);
   Serial.begin (115200);
-  configTime(MY_TZ, MY_NTP_SERVER); // --> Here is the IMPORTANT ONE LINER needed in your sketch!
+  
+  // Set the timezone environment variable
+  setenv("TZ", MY_TZ, 1);
+  tzset(); // Apply the timezone setting
 
+  // Configure NTP (UTC offset is set to 0 as TZ handles it)
+  configTime( 0, 0, MY_NTP_SERVER); // --> Here is the IMPORTANT ONE LINER needed in your sketch!
   // start network
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
@@ -91,7 +100,7 @@ void setup() {
 
   time(&now);                       // read the current time
   localtime_r(&now, &tm);           // update the structure tm with the current time
-
+  Serial.printf("\nTime is %u", now);
   // Multiple instances can be created. Arguments are longitude, latitude, and
   // time zone offset in hours from UTC.
   //
